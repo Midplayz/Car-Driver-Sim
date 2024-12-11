@@ -15,14 +15,14 @@ public class CarController : MonoBehaviour
     public Transform rearRightMesh;
 
     [Header("Car Settings")]
-    public float maxMotorTorque = 1500f; 
-    public float maxSteeringAngle = 30f; 
-    public float brakeForce = 3000f; 
-    public float eBrakeForce = 5000f; 
-    public float driftStiffness = 0.5f; 
+    public float maxMotorTorque = 1500f;
+    public float maxSteeringAngle = 30f;
+    public float brakeForce = 3000f;
+    public float eBrakeForce = 5000f;
+    public float driftStiffness = 0.5f;
 
     [Header("Visual Effects")]
-    public ParticleSystem skidSmoke; 
+    public ParticleSystem[] skidSmokes; // Array for individual tyre smoke systems
 
     private float motorInput;
     private float steeringInput;
@@ -50,10 +50,10 @@ public class CarController : MonoBehaviour
 
     private void GetInput()
     {
-        motorInput = Input.GetAxis("Vertical"); 
+        motorInput = Input.GetAxis("Vertical");
         steeringInput = Input.GetAxis("Horizontal");
-        brakeInput = Input.GetKey(KeyCode.Space) ? brakeForce : 0f; 
-        isDrifting = Input.GetKey(KeyCode.LeftShift); 
+        brakeInput = Input.GetKey(KeyCode.Space) ? brakeForce : 0f;
+        isDrifting = Input.GetKey(KeyCode.LeftShift);
     }
 
     private void HandleMotor()
@@ -93,36 +93,54 @@ public class CarController : MonoBehaviour
     {
         if (isDrifting)
         {
+            // Reduce sideways friction for rear wheels
             WheelFrictionCurve driftCurve = rearLeftCollider.sidewaysFriction;
             driftCurve.stiffness = driftStiffness;
             rearLeftCollider.sidewaysFriction = driftCurve;
             rearRightCollider.sidewaysFriction = driftCurve;
 
-            if (skidSmoke && !skidSmoke.isPlaying)
-            {
-                skidSmoke.Play();
-            }
+            PlaySmoke(); // Trigger smoke particles when drifting
         }
         else
         {
+            // Restore default friction when not drifting
             WheelFrictionCurve normalCurve = rearLeftCollider.sidewaysFriction;
             normalCurve.stiffness = 1f;
             rearLeftCollider.sidewaysFriction = normalCurve;
             rearRightCollider.sidewaysFriction = normalCurve;
 
-            if (skidSmoke && skidSmoke.isPlaying)
+            StopSmoke(); // Stop smoke particles when not drifting
+        }
+    }
+
+    private void PlaySmoke()
+    {
+        foreach (var smoke in skidSmokes)
+        {
+            if (!smoke.isPlaying)
             {
-                skidSmoke.Stop();
+                smoke.Play();
+            }
+        }
+    }
+
+    private void StopSmoke()
+    {
+        foreach (var smoke in skidSmokes)
+        {
+            if (smoke.isPlaying)
+            {
+                smoke.Stop();
             }
         }
     }
 
     private void UpdateWheelPoses()
     {
-        UpdateWheelPose(frontLeftCollider, frontLeftMesh, true); 
-        UpdateWheelPose(frontRightCollider, frontRightMesh, true); 
-        UpdateWheelPose(rearLeftCollider, rearLeftMesh, false); 
-        UpdateWheelPose(rearRightCollider, rearRightMesh, false); 
+        UpdateWheelPose(frontLeftCollider, frontLeftMesh, true);
+        UpdateWheelPose(frontRightCollider, frontRightMesh, true);
+        UpdateWheelPose(rearLeftCollider, rearLeftMesh, false);
+        UpdateWheelPose(rearRightCollider, rearRightMesh, false);
     }
 
     private void UpdateWheelPose(WheelCollider collider, Transform mesh, bool isSteeringWheel)
@@ -145,7 +163,6 @@ public class CarController : MonoBehaviour
             mesh.rotation = collider.transform.rotation * rollRotation;
         }
     }
-
 
     private void ApplyAntiRollBar(WheelCollider leftWheel, WheelCollider rightWheel)
     {
